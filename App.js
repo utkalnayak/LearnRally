@@ -9,7 +9,7 @@
                        layout: {
                        type: 'hbox',
                        align: 'stretch'
-                       },
+                       }
             });
             this.add(this.pullDownContainer);
             
