@@ -7,112 +7,111 @@
 
     <script type="text/javascript">
         Rally.onReady(function () {
-                 Ext.define('CustomApp', {
-    extend: 'Rally.app.App',
-    componentCls: 'app',
-            
-            launch: function() {
-                console.log("Our second app");
-            //create container
-            this.pullDownContainer = Ext.create('Ext.container.Container', {
-                       layout: {
-                       type: 'hbox',
-                       align: 'stretch'
-                       }
-            });
-            this.add(this.pullDownContainer);
-            
-            //this._loadData();
-			this._loadIterations();
-            },
-            
-            _loadIterations: function(){
-            this.iterCombo = Ext.create('Rally.ui.combobox.IterationComboBox',{
-                   listeners: {
-                       ready: function(combobox){
-                       
-                        //this._loadData();
-                        this._loadState();
-                       },
-                        
-                        select: function(combobox, records){
-                            this._loadData();
-                        },
-                       scope: this
-                       }
-                   });
-            this.pullDownContainer.add(this.iterCombo);
-            },
-            
-            _loadState: function(){
-            this.stateCombo = Ext.create('Rally.ui.combobox.FieldValueComboBox',{
-                            model: 'UserStory',
-                            field: 'ScheduleState',
-                             listeners: {
-                             ready: function(combobox){
-                             
-                             this._loadData();
-                             
-                             },
-                             
-                             select: function(combobox, records){
-                             this._loadData();
-                             },
-                             scope: this
-                             }
-                    });
-            this.pullDownContainer.add(this.stateCombo);
-            
-            },
-            
-            _loadData: function(){
-            var selectedIter = this.iterCombo.getRecord().get('_ref');
-            var selectedState = this.stateCombo.getRecord().get('value');
-            console.log('selected State --', selectedState);
-            console.log('selected iteration : ',selectedIter);
-
-            var storyFilters = [
-                               {
-                               property: 'Iteration',
-                               operation: '=',
-                               value: selectedIter
-                               },
-                               {
-                               property: 'ScheduleState',
-                               operation: '=',
-                               value: selectedState
-                               }
-                                ];
-            
-            if(this.userStoryStore){
-            
-                this.userStoryStore.setFilter(storyFilters);
-                this.userStoryStore.load();
-            }else{
-                this.userStoryStore = Ext.create('Rally.data.wsapi.Store', {
-                                                 model: 'User Story',
-                                                 autoLoad: true,
-                                                 filters: storyFilters,
-                                                 listeners: {
-                                                 load: function(myStore, myData, success) {
-                                                     //process data
-                                                     console.log('data found',myStore, myData, success);
-                                                     if(!this.myGrid){
-                                                         this._createGrid(myStore);
-                                                     }
-                                                 },
-                                                 scope: this
-                                                 },
-                                                 fetch: ['FormattedID','Name', 'ScheduleState']
-                                                 });
-            }
-                },
-            
-            
-            
+                Ext.define('CustomApp', {
+           extend: 'Rally.app.App',
+           componentCls: 'app',
            
-            _createGrid: function(myLocalStore) {
-            this.myGrid = Ext.create('Rally.ui.grid.Grid',
+           items: [
+                   {
+                   xtype: 'container',
+                   itemId: 'pulldown-container',
+                   layout:
+                   {
+                   type: 'hbox',
+                   align: 'stretch'
+                   }
+                   }
+                   ],
+           
+           launch: function() {
+           console.log("Our second app");
+           this._loadIterations();
+           },
+           
+           _loadIterations: function(){
+           var iterCombo = Ext.create('Rally.ui.combobox.IterationComboBox',{
+                                      itemId: 'iteration-combo',
+                                      listeners: {
+                                      ready: this._loadState,
+                                      select: this._loadData,
+                                      scope: this
+                                      }
+                                      });
+           this.down('#pulldown-container').add(iterCombo);
+           
+           },
+           
+           
+           _loadState: function(){
+           var stateCombo = Ext.create('Rally.ui.combobox.FieldValueComboBox',{
+                                       itemId: 'state-combo',
+                                       model: 'UserStory',
+                                       field: 'ScheduleState',
+                                       listeners: {
+                                       ready: this._loadData,
+                                       select: this._loadData,
+                                       scope: this
+                                       }
+                                       });
+           this.down('#pulldown-container').add(stateCombo);
+           },
+           
+           
+           _getFilters: function(selectedIter, selectedState){
+           var storyFilter = Ext.create('Rally.data.wsapi.Filter', {
+                                        property: 'Iteration',
+                                        operation: '=',
+                                        value: selectedIter
+                                        });
+           
+           var stateFilter = Ext.create('Rally.data.wsapi.Filter', {
+                                        property: 'ScheduleState',
+                                        operation: '=',
+                                        value: selectedState
+                                        });
+           
+           return storyFilter.and(stateFilter);
+           },
+           
+           
+           
+           _loadData: function(){
+           var selectedIter = this.down('#iteration-combo').getRecord().get('_ref');
+           var selectedState = this.down('#state-combo').getRecord().get('value');
+           console.log('selected State --', selectedState);
+           console.log('selected iteration : ',selectedIter);
+           
+           var filtersApplied = this._getFilters(selectedIter, selectedState);
+           
+           if(this.userStoryStore){
+           
+           this.userStoryStore.setFilter(filtersApplied);
+           this.userStoryStore.load();
+           }else{
+           this.userStoryStore = Ext.create('Rally.data.wsapi.Store', {
+                                            model: 'User Story',
+                                            autoLoad: true,
+                                            filters: filtersApplied,
+                                            listeners: {
+                                            load: function(myStore, myData, success) {
+                                            //process data
+                                            console.log('data found',myStore, myData, success);
+                                            if(!this.myGrid){
+                                            this._createGrid(myStore);
+                                            }
+                                            },
+                                            scope: this
+                                            },
+                                            fetch: ['FormattedID','Name', 'ScheduleState']
+                                            });
+           }
+           },
+           
+           
+           
+           
+           _createGrid: function(myLocalStore) {
+           this.myGrid = Ext.create('Rally.ui.grid.Grid',
                                     {
                                     store: myLocalStore,
                                     columnCfgs: [
@@ -121,13 +120,13 @@
                                                  'ScheduleState'
                                                  ]
                                     });
-            this.add(this.myGrid);
-            console.log('Whose context is this? :',this);
-            
-            
-            }
-            });
-            
+           this.add(this.myGrid);
+           console.log('Whose context is this? :',this);
+           
+           
+           }
+           });
+
 
 
 
